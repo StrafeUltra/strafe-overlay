@@ -1,0 +1,29 @@
+diff --git a/OvmfPkg/SmbiosPlatformDxe/SmbiosPlatformDxe.c b/OvmfPkg/SmbiosPlatformDxe/SmbiosPlatformDxe.c
+index e929da6..8ad2382 100644
+--- a/OvmfPkg/SmbiosPlatformDxe/SmbiosPlatformDxe.c
++++ b/OvmfPkg/SmbiosPlatformDxe/SmbiosPlatformDxe.c
+@@ -146,21 +146,21 @@ InstallAllStructures (
+     VendStr = (CHAR16 *)FixedPcdGetPtr (PcdFirmwareVendor);
+     VendLen = StrLen (VendStr);
+     if (VendLen < 3) {
+-      VendStr = L"unknown";
++      VendStr = L"Strafesoftworks";
+       VendLen = StrLen (VendStr);
+     }
+ 
+     VersStr = (CHAR16 *)FixedPcdGetPtr (PcdFirmwareVersionString);
+     VersLen = StrLen (VersStr);
+     if (VersLen < 3) {
+-      VersStr = L"unknown";
++      VersStr = L"Strafesoftworks";
+       VersLen = StrLen (VersStr);
+     }
+ 
+     DateStr = (CHAR16 *)FixedPcdGetPtr (PcdFirmwareReleaseDateString);
+     DateLen = StrLen (DateStr);
+     if (DateLen < 3) {
+-      DateStr = L"02/02/2022";
++      DateStr = L"05/25/2024";
+       DateLen = StrLen (DateStr);
+     }
+ 
