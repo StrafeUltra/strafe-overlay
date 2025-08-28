@@ -44,6 +44,7 @@ DEPEND="dev-libs/glib
 	media-libs/libglvnd[X]
 	media-libs/libsamplerate
 	media-libs/libsdl2
+	net-misc/curl
   media-libs/glu
 	net-libs/libpcap
 	net-libs/libslirp
