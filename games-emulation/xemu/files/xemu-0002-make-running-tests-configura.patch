@@ -1,0 +1,88 @@
+From 973413cadb334644d003cf412cfbb0b650125125 Mon Sep 17 00:00:00 2001
+From: Andrew Udvare <audvare@gmail.com>
+Date: Wed, 6 Oct 2021 02:35:51 -0400
+Subject: [PATCH 2/8] Make running tests configurable
+
+---
+ configure         |  5 +++++
+ meson.build       | 13 +++++++++----
+ meson_options.txt |  2 ++
+ 3 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/configure b/configure
+index d79043187f..cfa02e463d 100755
+--- a/configure
++++ b/configure
+@@ -797,6 +797,10 @@ for opt do
+   ;;
+   --rust-target-triple=*) rust_target_triple="$optarg"
+   ;;
++  --enable-tests) meson_option_add -Drun_tests=true
++  ;;
++  --disable-tests) meson_option_add -Drun_tests=false
++  ;;
+   --gdb=*) gdb_bin="$optarg"
+   ;;
+   --enable-rust) rust=enabled
+@@ -937,6 +941,7 @@ Advanced options (experts only):
+   --cpu=CPU                Build for host CPU [$cpu]
+   --disable-containers     don't use containers for cross-building
+   --container-engine=TYPE  which container engine to use [$container_engine]
++  --disable-tests          disable tests
+   --gdb=GDB-path           gdb to use for gdbstub tests [$gdb_bin]
+ EOF
+   meson_options_help
+diff --git a/meson.build b/meson.build
+index ec0d183b77..3a4a6a071e 100644
+--- a/meson.build
++++ b/meson.build
+@@ -3954,8 +3954,10 @@ subdir('bsd-user')
+ subdir('linux-user')
+ 
+ # needed for fuzzing binaries
+-subdir('tests/qtest/libqos')
+-subdir('tests/qtest/fuzz')
++if get_option('run_tests')
++	subdir('tests/qtest/libqos')
++	subdir('tests/qtest/fuzz')
++endif
+ 
+ # accel modules
+ tcg_real_module_ss = ss.source_set()
+@@ -4607,7 +4609,9 @@ subdir('scripts')
+ subdir('tools')
+ subdir('pc-bios')
+ subdir('docs')
+-subdir('tests')
++if get_option('run_tests')
++	subdir('tests')
++endif
+ if gtk.found()
+   subdir('po')
+ endif
+@@ -4698,7 +4702,8 @@ summary_info += {'system-mode emulation': have_system}
+ summary_info += {'user-mode emulation': have_user}
+ summary_info += {'block layer':       have_block}
+ summary_info += {'Install blobs':     get_option('install_blobs')}
+-summary_info += {'module support':    enable_modules}
++summary_info += {'Run tests':         get_option('run_tests')}
++summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
+ if enable_modules
+   summary_info += {'alternative module path': get_option('module_upgrades')}
+ endif
+diff --git a/meson_options.txt b/meson_options.txt
+index 40abf01daf..d9195289f0 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -65,6 +65,8 @@ option('tools', type : 'feature', value : 'auto',
+        description: 'build support utilities that come with QEMU')
+ option('qga_vss', type : 'feature', value: 'auto',
+        description: 'build QGA VSS support (broken with MinGW)')
++option('run_tests', type : 'boolean', value : false,
++       description : 'run validation tests' )
+ 
+ option('malloc_trim', type : 'feature', value : 'auto',
+        description: 'enable libc malloc_trim() for memory optimization')
+-- 
+2.48.1
+
