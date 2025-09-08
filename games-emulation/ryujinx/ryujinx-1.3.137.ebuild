@@ -33,12 +33,12 @@ NUGETS="avalonia@11.0.0
 	communitytoolkit.mvvm@8.4.0
 	concentus@2.2.2
 	csfastfloat@4.1.5
-	discordrichpresence@1.2.1.24
-	dynamicdata@9.0.4
+	discordrichpresence@1.6.1.70
+	dynamicdata@9.4.1
 	excss@4.2.3
 	fluentavaloniaui@2.0.5
 	fsharp.core@7.0.200
-	gommon@2.7.1.1
+	gommon@2.7.2.1
 	harfbuzzsharp@7.3.0
 	harfbuzzsharp@7.3.0.2
 	harfbuzzsharp.nativeassets.linux@7.3.0
@@ -172,7 +172,7 @@ NUGETS="avalonia@11.0.0
 	ryujinx.sdl2-cs@2.30.0-build32
 	securifybv.propertystore@0.1.0
 	securifybv.shelllink@0.1.0
-	sep@0.6.0
+	sep@0.11.1
 	shaderc.net@0.1.0
 	sharpziplib@1.4.2
 	shimskiasharp@1.0.0.19
@@ -263,8 +263,8 @@ SLOT="0"
 # LibHac >= 0.21.0-alpha.116 is required by 1.3.134; UpdateClient packages come from project 71's NuGet feed.
 SRC_URI="https://git.ryujinx.app/ryubing/${PN}/-/archive/Canary-${PV}/${PN}-Canary-${PV}.tar.gz -> ${P}.tar.gz
 	https://git.ryujinx.app/api/v4/projects/17/packages/nuget/download/Ryujinx.LibHac/0.21.0-alpha.116/ryujinx.libhac.0.21.0-alpha.116.nupkg -> ${PN}.libhac.0.21.0-alpha.116.nupkg
-	https://git.ryujinx.app/api/v4/projects/71/packages/nuget/download/Ryujinx.UpdateClient/1.0.29/ryujinx.updateclient.1.0.29.nupkg -> ${PN}.updateclient.1.0.29.nupkg
-	https://git.ryujinx.app/api/v4/projects/71/packages/nuget/download/Ryujinx.Systems.Update.Common/1.0.29/ryujinx.systems.update.common.1.0.29.nupkg -> ${PN}.systems.update.common.1.0.29.nupkg
+	https://git.ryujinx.app/api/v4/projects/71/packages/nuget/download/Ryujinx.UpdateClient/1.0.44/ryujinx.updateclient.1.0.44.nupkg -> ${PN}.updateclient.1.0.44.nupkg
+	https://git.ryujinx.app/api/v4/projects/71/packages/nuget/download/Ryujinx.Systems.Update.Common/1.0.44/ryujinx.systems.update.common.1.0.44.nupkg -> ${PN}.systems.update.common.1.0.44.nupkg
 	${NUGET_URIS}
 "
 
