@@ -32,7 +32,8 @@ fi
 DESCRIPTION="libvirt Python bindings"
 HOMEPAGE="https://www.libvirt.org"
 
-S="${WORKDIR}/${P%_rc*}"
+#S="${WORKDIR}/${P%_rc*}"
+S="${WORKDIR}/libvirt_python-11.8.0"
 
 LICENSE="LGPL-2"
 SLOT="0"
