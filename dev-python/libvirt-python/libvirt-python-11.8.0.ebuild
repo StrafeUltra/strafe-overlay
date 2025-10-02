@@ -21,8 +21,10 @@ if [[ ${PV} == *9999* ]]; then
 	RDEPEND="app-emulation/libvirt:="
 else
 	MY_P="${P/_rc/-rc}"
-	SRC_URI="https://download.libvirt.org/python/${MY_P}.tar.gz
-		verify-sig? ( https://download.libvirt.org/python/${MY_P}.tar.gz.asc )"
+	#SRC_URI="https://download.libvirt.org/python/${MY_P}.tar.gz
+	#	verify-sig? ( https://download.libvirt.org/python/${MY_P}.tar.gz.asc )"
+	SRC_URI="https://files.pythonhosted.org/packages/3f/f2/d44cf691ae2bda128e7acff537283bb185f4d16d7c819e2ae44cb06dba2c/libvirt_python-11.8.0.tar.gz"
+	# ^ temp until libvirt.org has the appropriate source file
 	KEYWORDS="~amd64 ~arm ~arm64 ~ppc64 ~x86"
 	RDEPEND="app-emulation/libvirt:0/${PV}"
 fi
