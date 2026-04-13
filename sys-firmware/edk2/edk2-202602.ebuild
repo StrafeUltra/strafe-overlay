@@ -61,9 +61,7 @@ RDEPEND="
 "
 
 PATCHES=(
-	"${FILESDIR}/${PN}-202511-werror.patch"
-	"${FILESDIR}/${PN}-202502-nasm-3.patch"
-	"${FILESDIR}/${PN}-202505-UninstallMemAttrProtocol.patch"
+
 )
 
 DISABLE_AUTOFORMATTING="true"
