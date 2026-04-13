@@ -1,23 +1,25 @@
-# Copyright 1999-2025 Gentoo Authors
+# Copyright 1999-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
 
 PYTHON_REQ_USE="sqlite"
-PYTHON_COMPAT=( python3_{12..13} )
+PYTHON_COMPAT=( python3_{12..14} )
 
 inherit edo prefix python-any-r1 readme.gentoo-r1 secureboot toolchain-funcs
 
 DESCRIPTION="TianoCore EDK II UEFI firmware for virtual machines"
 HOMEPAGE="https://github.com/tianocore/edk2"
 
-DBXDATE="05092023" # MMDDYYYY
-BUNDLED_BROTLI_SUBMODULE_SHA="f4153a09f87cbb9c826d8fc12c74642bb2d879ea"
+BUNDLED_BROTLI_SUBMODULE_SHA="e230f474b87134e8c6c85b630084c612057f253e"
 BUNDLED_LIBFDT_SUBMODULE_SHA="cfff805481bdea27f900c32698171286542b8d3c"
 BUNDLED_LIBSPDM_SUBMODULE_SHA="98ef964e1e9a0c39c7efb67143d3a13a819432e0"
 BUNDLED_MBEDTLS_SUBMODULE_SHA="8c89224991adff88d53cd380f42a2baa36f91454"
 BUNDLED_MIPI_SYS_T_SUBMODULE_SHA="370b5944c046bab043dd8b133727b2135af7747a"
 BUNDLED_OPENSSL_SUBMODULE_P="openssl-3.5.1"
+
+SBO_VER="1.6.3" # https://github.com/microsoft/secureboot_objects/releases
+DBX_URI="https://github.com/microsoft/secureboot_objects/raw/refs/tags/v${SBO_VER}/PostSignedObjects/DBX/@ARCH@/DBXUpdate.bin -> @ARCH@_DBXUpdate_v${SBO_VER}.bin"
 
 SRC_URI="
 	https://github.com/tianocore/${PN}/archive/${PN}-stable${PV}.tar.gz
@@ -32,14 +34,10 @@ SRC_URI="
 		-> mipi-sys-t-${BUNDLED_MIPI_SYS_T_SUBMODULE_SHA}.tar.gz
 	https://github.com/openssl/openssl/releases/download/${BUNDLED_OPENSSL_SUBMODULE_P}/${BUNDLED_OPENSSL_SUBMODULE_P}.tar.gz
 
-	amd64? (
-		https://uefi.org/sites/default/files/resources/x64_DBXUpdate_${DBXDATE}.bin
-		https://uefi.org/sites/default/files/resources/x64_DBXUpdate.bin -> x64_DBXUpdate_${DBXDATE}.bin
-	)
+	amd64? ( ${DBX_URI//@ARCH@/amd64} )
+	arm64? ( ${DBX_URI//@ARCH@/arm64} )
 
-	arm64? (
-		https://uefi.org/sites/default/files/resources/arm64_DBXUpdate_${DBXDATE}.bin
-		https://uefi.org/sites/default/files/resources/arm64_DBXUpdate.bin -> arm64_DBXUpdate_${DBXDATE}.bin
+	!amd64? (
 		https://github.com/devicetree-org/pylibfdt/archive/${BUNDLED_LIBFDT_SUBMODULE_SHA}.tar.gz
 			-> pylibfdt-${BUNDLED_LIBFDT_SUBMODULE_SHA}.tar.gz
 	)
@@ -48,7 +46,7 @@ SRC_URI="
 S="${WORKDIR}/${PN}-${PN}-stable${PV}"
 LICENSE="BSD-2-with-patent MIT"
 SLOT="0"
-KEYWORDS="-* ~amd64 ~loong ~riscv"
+KEYWORDS="-* ~amd64 ~arm64 ~loong ~riscv"
 
 BDEPEND="
 	${PYTHON_DEPS}
@@ -63,7 +61,9 @@ RDEPEND="
 "
 
 PATCHES=(
-	"${FILESDIR}/edk2fixes.patch"
+	"${FILESDIR}/${PN}-202511-werror.patch"
+	"${FILESDIR}/${PN}-202502-nasm-3.patch"
+	"${FILESDIR}/${PN}-202505-UninstallMemAttrProtocol.patch"
 )
 
 DISABLE_AUTOFORMATTING="true"
@@ -87,7 +87,7 @@ pkg_setup() {
 	arm64)
 		TARGET_ARCH="AARCH64"
 		QEMU_ARCH="aarch64"
-		ARCH_DIRS="${DIR}/ArmVirtQemu-AARCH64"
+		ARCH_DIRS="${DIR}/ArmVirtQemu-AArch64"
 		UNIT0="QEMU_EFI.qcow2"
 		UNIT1="QEMU_VARS.qcow2"
 		FMT="qcow2"
@@ -159,7 +159,7 @@ src_prepare() {
 	link_mod "${WORKDIR}/${BUNDLED_OPENSSL_SUBMODULE_P}" \
 		CryptoPkg/Library/OpensslLib/openssl
 
-	use arm64 &&
+	[[ -e ${DISTDIR}/pylibfdt-${BUNDLED_LIBFDT_SUBMODULE_SHA}.tar.gz ]] &&
 		link_mod "${WORKDIR}/pylibfdt-${BUNDLED_LIBFDT_SUBMODULE_SHA}" \
 			MdePkg/Library/BaseFdtLib/libfdt
 
@@ -169,10 +169,11 @@ src_prepare() {
 	hprefixify "${FILESDIR}"/descriptors/*.json
 }
 
-mybuild() {
+my_build() {
 	edo build \
 		-t "${TOOLCHAIN}" \
 		-b "${BUILD_TARGET}" \
+		-a "${TARGET_ARCH}" \
 		-D NETWORK_HTTP_BOOT_ENABLE \
 		-D NETWORK_IP6_ENABLE \
 		-D NETWORK_TLS_ENABLE \
@@ -183,12 +184,39 @@ mybuild() {
 		"${@}"
 }
 
+sb_build() {
+	# DO NOT enable the shell with Secure Boot as it can be used as a bypass!
+	my_build \
+		-D BUILD_SHELL=FALSE \
+		-D SECURE_BOOT_ENABLE \
+		--pcd PcdDxeNxMemoryProtectionPolicy=0xC000000000007FD5 \
+		--pcd PcdImageProtectionPolicy=0x03 \
+		--pcd PcdNullPointerDetectionPropertyMask=0x03 \
+		--pcd PcdSetNxForStack=TRUE \
+		--pcd PcdUninstallMemAttrProtocol=FALSE \
+		"${@}"
+}
+
 # Add the MS and Red Hat Secure Boot certificates and update the revocation list
-# for the given architecture in the given raw variables image.
-mk_fw_vars() {
-	edo virt-fw-vars \
-		--set-dbx "${DISTDIR}/$1_DBXUpdate_${DBXDATE}.bin" \
-		--secure-boot --enroll-redhat --inplace "$2"
+# in the given raw variable images.
+mk_fw_vars_raw() {
+	local input args=() dbx="${DISTDIR}/${ARCH}_DBXUpdate_v${SBO_VER}.bin"
+	[[ -e ${dbx} ]] && args+=( --set-dbx "${dbx}" )
+
+	for input; do
+		edo virt-fw-vars --secure-boot --enroll-redhat "${args[@]}" \
+			--inplace "${input}"
+	done
+}
+
+# Write the MS and Red Hat Secure Boot certificates and the revocation list to a
+# JSON file for QEMU.
+mk_fw_vars_json() {
+	local args=() dbx="${DISTDIR}/${ARCH}_DBXUpdate_v${SBO_VER}.bin"
+	[[ -e ${dbx} ]] && args+=( --set-dbx "${dbx}" )
+
+	edo virt-fw-vars --secure-boot --enroll-redhat "${args[@]}" \
+		--output-json "${S}/${ARCH}.qemuvars.json"
 }
 
 # Convert the given images from raw to QCOW2 and resize them to the amount given
@@ -202,14 +230,6 @@ raw_to_qcow2() {
 		[[ ${SIZE} != 0 ]] && edo qemu-img resize -f qcow2 "${RAW%.fd}.qcow2" "${SIZE}"
 		rm "${RAW}" || die
 	done
-}
-
-nx_strict_args() {
-	"${@}" \
-		--pcd PcdDxeNxMemoryProtectionPolicy=0xC000000000007FD5 \
-		--pcd PcdImageProtectionPolicy=0x03 \
-		--pcd PcdNullPointerDetectionPropertyMask=0x03 \
-		--pcd PcdSetNxForStack=TRUE
 }
 
 src_compile() {
@@ -231,64 +251,67 @@ src_compile() {
 
 	. ./edksetup.sh
 
-	# DO NOT enable the shell with Secure Boot as it can be used as a bypass!
-
 	case "${ARCH}" in
 	amd64)
-		BUILD_ARGS+=(
-			# shim.efi has broken MemAttr code
-			--pcd PcdUninstallMemAttrProtocol=TRUE
-		)
-
 		local SIZE
 		for SIZE in _2M _4M; do
-			nx_strict_args mybuild -a X64 -p OvmfPkg/OvmfPkgX64.dsc \
+			sb_build -p OvmfPkg/OvmfPkgX64.dsc \
 				-D FD_SIZE${SIZE}B \
-				-D BUILD_SHELL=FALSE \
-				-D SECURE_BOOT_ENABLE \
 				-D SMM_REQUIRE
 
-			mv -T Build/OvmfX64 Build/OvmfX64${SIZE}.secboot || die
+			mv -T Build/OvmfX64{,${SIZE}.secboot} || die
 
-			mybuild -a X64 -p OvmfPkg/OvmfPkgX64.dsc \
+			# shim.efi has broken MemAttr code
+			my_build -p OvmfPkg/OvmfPkgX64.dsc \
 				-D FD_SIZE${SIZE}B \
-				--pcd PcdDxeNxMemoryProtectionPolicy=0
+				--pcd PcdDxeNxMemoryProtectionPolicy=0 \
+				--pcd PcdUninstallMemAttrProtocol=TRUE
 
-			mv -T Build/OvmfX64 Build/OvmfX64${SIZE} || die
+			mv -T Build/OvmfX64{,${SIZE}} || die
 
-			mk_fw_vars x64 Build/OvmfX64${SIZE}.secboot/"${BUILD_DIR}"/FV/OVMF_VARS.fd
+			mk_fw_vars_raw Build/OvmfX64${SIZE}.secboot/"${BUILD_DIR}"/FV/OVMF_VARS.fd
 		done
+
+		sb_build -p OvmfPkg/OvmfPkgX64.dsc \
+			-D FD_SIZE_4MB \
+			-D QEMU_PV_VARS
+
+		mv -T Build/OvmfX64{,.qemuvars} || die
 
 		# Fedora only converts newer images to QCOW2. 2MB images are raw.
 		raw_to_qcow2 0 Build/OvmfX64_4M*/"${BUILD_DIR}"/FV/OVMF_{CODE,VARS}.fd
+		mk_fw_vars_json
 		;;
 	arm64)
-		BUILD_ARGS+=(
-			# shim.efi has broken MemAttr code
+		sb_build -p ArmVirtPkg/ArmVirtQemu.dsc
+		mv -T Build/ArmVirtQemu-AArch64{,.secboot_INSECURE} || die
+
+		sb_build -p ArmVirtPkg/ArmVirtQemu.dsc \
+			-D QEMU_PV_VARS
+
+		mv -T Build/ArmVirtQemu-AArch64{,.qemuvars} || die
+
+		# shim.efi has broken MemAttr code
+		my_build -p ArmVirtPkg/ArmVirtQemu.dsc \
+			--pcd PcdDxeNxMemoryProtectionPolicy=0xC000000000007FD1 \
 			--pcd PcdUninstallMemAttrProtocol=TRUE
-		)
 
-		nx_strict_args mybuild -a AARCH64 -p ArmVirtPkg/ArmVirtQemu.dsc \
-			-D BUILD_SHELL=FALSE \
-			-D SECURE_BOOT_ENABLE
-
-		mv -T Build/ArmVirtQemu-AARCH64 Build/ArmVirtQemu-AARCH64.secboot_INSECURE || die
-
-		mybuild -a AARCH64 -p ArmVirtPkg/ArmVirtQemu.dsc \
-			--pcd PcdDxeNxMemoryProtectionPolicy=0xC000000000007FD1
-
-		mk_fw_vars arm64 Build/ArmVirtQemu-AARCH64.secboot_INSECURE/"${BUILD_DIR}"/FV/QEMU_VARS.fd
-		raw_to_qcow2 64m Build/ArmVirtQemu-AARCH64*/"${BUILD_DIR}"/FV/QEMU_{EFI,VARS}.fd
+		mk_fw_vars_raw Build/ArmVirtQemu-AArch64.secboot_INSECURE/"${BUILD_DIR}"/FV/QEMU_VARS.fd
+		raw_to_qcow2 64m Build/ArmVirtQemu-AArch64{,.secboot_INSECURE}/"${BUILD_DIR}"/FV/QEMU_{EFI,VARS}.fd
+		mk_fw_vars_json
 		;;
 	loong)
-		mybuild -a LOONGARCH64 -p OvmfPkg/LoongArchVirt/LoongArchVirtQemu.dsc
+		my_build -p OvmfPkg/LoongArchVirt/LoongArchVirtQemu.dsc
 		raw_to_qcow2 0 Build/LoongArchVirtQemu/"${BUILD_DIR}"/FV/QEMU_{EFI,VARS}.fd
 		;;
 	riscv)
-		mybuild -a RISCV64 -p OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
+		my_build -p OvmfPkg/RiscVVirt/RiscVVirtQemu.dsc
 		raw_to_qcow2 32m Build/RiscVVirtQemu/"${BUILD_DIR}"/FV/RISCV_VIRT_{CODE,VARS}.fd
 		;;
 	esac
+
+	# The standalone shell is safe so always build it.
+	my_build -p ShellPkg/ShellPkg.dsc
 }
 
 src_install() {
@@ -297,7 +320,6 @@ src_install() {
 	case "${ARCH}" in
 	amd64)
 		insinto ${DIR}/OvmfX64
-		doins Build/OvmfX64_2M/"${BUILD_DIR}"/X64/Shell.efi
 
 		for SIZE in _2M _4M; do
 			for TYPE in "" .secboot; do
@@ -307,6 +329,9 @@ src_install() {
 			done
 		done
 
+		newins Build/OvmfX64.qemuvars/"${BUILD_DIR}"/FV/OVMF_CODE.fd OVMF_CODE.qemuvars.fd
+		newins amd64.qemuvars.json OVMF_VARS.qemuvars.json
+
 		# Compatibility with older package versions.
 		dosym ${PN}/OvmfX64 /usr/share/edk2-ovmf
 		;;
@@ -314,9 +339,12 @@ src_install() {
 		insinto ${DIR}/ArmVirtQemu-AARCH64
 
 		for TYPE in "" .secboot_INSECURE; do
-			newins Build/ArmVirtQemu-AARCH64${TYPE}/"${BUILD_DIR}"/FV/QEMU_EFI.qcow2 QEMU_EFI${TYPE}.qcow2
-			newins Build/ArmVirtQemu-AARCH64${TYPE}/"${BUILD_DIR}"/FV/QEMU_VARS.qcow2 QEMU_VARS${TYPE}.qcow2
+			newins Build/ArmVirtQemu-AArch64${TYPE}/"${BUILD_DIR}"/FV/QEMU_EFI.qcow2 QEMU_EFI${TYPE}.qcow2
+			newins Build/ArmVirtQemu-AArch64${TYPE}/"${BUILD_DIR}"/FV/QEMU_VARS.qcow2 QEMU_VARS${TYPE}.qcow2
 		done
+
+		newins Build/ArmVirtQemu-AArch64.qemuvars/"${BUILD_DIR}"/FV/QEMU_EFI.fd QEMU_EFI.qemuvars.fd
+		newins arm64.qemuvars.json QEMU_VARS.qemuvars.json
 		;;
 	loong)
 		insinto ${DIR}/LoongArchVirtQemu
@@ -327,6 +355,8 @@ src_install() {
 		doins Build/RiscVVirtQemu/"${BUILD_DIR}"/FV/RISCV_VIRT_{CODE,VARS}.qcow2
 		;;
 	esac
+
+	newins Build/Shell/"${BUILD_DIR}/${TARGET_ARCH}"/Shell_EA4BB293-2D7F-4456-A681-1F22F42CD0BC.efi Shell.efi
 
 	insinto /usr/share/qemu/firmware
 	doins "${FILESDIR}"/descriptors/*"${TARGET_ARCH,,}"*.json
