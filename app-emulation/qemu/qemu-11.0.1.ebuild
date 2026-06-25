@@ -110,6 +110,7 @@ IUSE_USER_TARGETS="
 	hexagon
 	mipsn32
 	mipsn32el
+	microblazeel
 	ppc64le
 	sparc32plus
 "
@@ -371,6 +372,7 @@ QA_WX_LOAD="
 	usr/bin/qemu-cris
 	usr/bin/qemu-m68k
 	usr/bin/qemu-microblaze
+	usr/bin/qemu-microblazeel
 	usr/bin/qemu-mips
 	usr/bin/qemu-mipsel
 	usr/bin/qemu-or1k
