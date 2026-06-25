@@ -11,7 +11,7 @@ QEMU_DOCS_PREBUILT_DEV=sam
 QEMU_DOCS_VERSION=$(ver_cut 1-2).0
 # Default to generating docs (inc. man pages) if no prebuilt; overridden later
 # bug #830088
-QEMU_DOC_USEFLAG="+doc"
+QEMU_DOC_USEFLAG="-doc"
 
 PYTHON_COMPAT=( python3_{12..14} )
 PYTHON_REQ_USE="ensurepip(-),ncurses,readline"
