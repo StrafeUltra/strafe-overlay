@@ -79,7 +79,6 @@ COMMON_TARGETS="
 	loongarch64
 	m68k
 	microblaze
-	microblazeel
 	mips
 	mips64
 	mips64el
@@ -372,7 +371,6 @@ QA_WX_LOAD="
 	usr/bin/qemu-cris
 	usr/bin/qemu-m68k
 	usr/bin/qemu-microblaze
-	usr/bin/qemu-microblazeel
 	usr/bin/qemu-mips
 	usr/bin/qemu-mipsel
 	usr/bin/qemu-or1k
