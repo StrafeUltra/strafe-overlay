@@ -48,7 +48,6 @@ PATCHES=(
 	"${FILESDIR}/${PN}-0.6.0-fix-localca-path.patch"
 	"${FILESDIR}/${PN}-0.10.0-build-sys-Remove-WError.patch"
 	"${FILESDIR}/${PN}-0.8.2-slibtool.patch"
-	"${FILESDIR}/${PN}-0.10.1-fix-test_tpm2_avoid_da_lockout-test.patch"
 )
 
 src_prepare() {
