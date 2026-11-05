@@ -4,28 +4,28 @@
 EAPI=8
 
 PYTHON_REQ_USE="sqlite"
-PYTHON_COMPAT=( python3_{12..14} )
+PYTHON_COMPAT=( python3_{12..15} )
 
-inherit edo prefix python-any-r1 readme.gentoo-r1 secureboot toolchain-funcs
+inherit edo flag-o-matic multiprocessing prefix python-any-r1 readme.gentoo-r1 secureboot toolchain-funcs
 
 DESCRIPTION="TianoCore EDK II UEFI firmware for virtual machines"
 HOMEPAGE="https://github.com/tianocore/edk2"
 
-BUNDLED_BROTLI_SUBMODULE_SHA="e230f474b87134e8c6c85b630084c612057f253e"
+BUNDLED_BROTLI_SUBMODULE_SHA="v1.2.1"
 BUNDLED_LIBFDT_SUBMODULE_SHA="cfff805481bdea27f900c32698171286542b8d3c"
-BUNDLED_LIBSPDM_SUBMODULE_SHA="98ef964e1e9a0c39c7efb67143d3a13a819432e0"
-BUNDLED_MBEDTLS_SUBMODULE_SHA="8c89224991adff88d53cd380f42a2baa36f91454"
+BUNDLED_LIBSPDM_SUBMODULE_SHA="f55cf6d48ec69b4ac60a63903e9c6a2cb0fd155d"
+BUNDLED_MBEDTLS_SUBMODULE_SHA="0bebf8b8c7f07abe3571ded48a11aa907a1ffb20"
 BUNDLED_MIPI_SYS_T_SUBMODULE_SHA="370b5944c046bab043dd8b133727b2135af7747a"
-BUNDLED_OPENSSL_SUBMODULE_P="openssl-3.5.1"
+BUNDLED_OPENSSL_SUBMODULE_P="openssl-3.5.9"
 
-SBO_VER="1.6.3" # https://github.com/microsoft/secureboot_objects/releases
+SBO_VER="1.7.1" # https://github.com/microsoft/secureboot_objects/releases
 DBX_URI="https://github.com/microsoft/secureboot_objects/raw/refs/tags/v${SBO_VER}/PostSignedObjects/DBX/@ARCH@/DBXUpdate.bin -> @ARCH@_DBXUpdate_v${SBO_VER}.bin"
 
 SRC_URI="
 	https://github.com/tianocore/${PN}/archive/${PN}-stable${PV}.tar.gz
 		-> ${P}.tar.gz
 	https://github.com/google/brotli/archive/${BUNDLED_BROTLI_SUBMODULE_SHA}.tar.gz
-		-> brotli-${BUNDLED_BROTLI_SUBMODULE_SHA}.tar.gz
+		-> brotli-${BUNDLED_BROTLI_SUBMODULE_SHA#v}.tar.gz
 	https://github.com/DMTF/libspdm/archive/${BUNDLED_LIBSPDM_SUBMODULE_SHA}.tar.gz
 		-> libspdm-${BUNDLED_LIBSPDM_SUBMODULE_SHA}.tar.gz
 	https://github.com/Mbed-TLS/mbedtls/archive/${BUNDLED_MBEDTLS_SUBMODULE_SHA}.tar.gz
@@ -46,7 +46,7 @@ SRC_URI="
 S="${WORKDIR}/${PN}-${PN}-stable${PV}"
 LICENSE="BSD-2-with-patent MIT"
 SLOT="0"
-KEYWORDS="-* ~amd64 ~arm64 ~loong ~riscv"
+KEYWORDS="-* amd64 arm64 ~loong ~riscv"
 
 BDEPEND="
 	${PYTHON_DEPS}
@@ -61,7 +61,9 @@ RDEPEND="
 "
 
 PATCHES=(
-
+	"${FILESDIR}/${PN}-202608-fix-gic-hvf.patch"
+	"${FILESDIR}/${PN}-202608-werror.patch"
+	"${FILESDIR}/${PN}-202505-UninstallMemAttrProtocol.patch"
 )
 
 DISABLE_AUTOFORMATTING="true"
@@ -85,7 +87,7 @@ pkg_setup() {
 	arm64)
 		TARGET_ARCH="AARCH64"
 		QEMU_ARCH="aarch64"
-		ARCH_DIRS="${DIR}/ArmVirtQemu-AArch64"
+		ARCH_DIRS="${DIR}/ArmVirtQemu-AARCH64"
 		UNIT0="QEMU_EFI.qcow2"
 		UNIT1="QEMU_VARS.qcow2"
 		FMT="qcow2"
@@ -144,9 +146,9 @@ link_mod() {
 
 src_prepare() {
 	# Bundled submodules
-	link_mod "${WORKDIR}/brotli-${BUNDLED_BROTLI_SUBMODULE_SHA}" \
+	link_mod "${WORKDIR}/brotli-${BUNDLED_BROTLI_SUBMODULE_SHA#v}" \
 		BaseTools/Source/C/BrotliCompress/brotli
-	link_mod "${WORKDIR}/brotli-${BUNDLED_BROTLI_SUBMODULE_SHA}" \
+	link_mod "${WORKDIR}/brotli-${BUNDLED_BROTLI_SUBMODULE_SHA#v}" \
 		MdeModulePkg/Library/BrotliCustomDecompressLib/brotli
 	link_mod "${WORKDIR}/libspdm-${BUNDLED_LIBSPDM_SUBMODULE_SHA}" \
 		SecurityPkg/DeviceSecurity/SpdmLib/libspdm
@@ -169,6 +171,7 @@ src_prepare() {
 
 my_build() {
 	edo build \
+		-n "$(get_makeopts_jobs)" \
 		-t "${TOOLCHAIN}" \
 		-b "${BUILD_TARGET}" \
 		-a "${TARGET_ARCH}" \
@@ -235,6 +238,10 @@ src_compile() {
 	BUILD_TARGET="RELEASE"
 	BUILD_DIR="${BUILD_TARGET}_${TOOLCHAIN}"
 	BUILD_ARGS=()
+
+	# ODR violations and type mismatches
+	filter-lto
+	append-flags -fno-strict-aliasing
 
 	tc-export_build_env
 	emake -C BaseTools \
