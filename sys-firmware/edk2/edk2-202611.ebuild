@@ -61,9 +61,8 @@ RDEPEND="
 "
 
 PATCHES=(
-	"${FILESDIR}/${PN}-202608-fix-gic-hvf.patch"
-	"${FILESDIR}/${PN}-202608-werror.patch"
-	"${FILESDIR}/${PN}-202505-UninstallMemAttrProtocol.patch"
+# edk2 patches haven't been updated by their upstream maintainers yet and im too lazy to recreate them but ill add them when upstream does
+# typical edk2 builds on x86_64 desktop environments dont really see to need them and i dont have the werror issue anymore?
 )
 
 DISABLE_AUTOFORMATTING="true"
